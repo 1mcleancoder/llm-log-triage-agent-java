@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>i.m.clean.coder</groupId>
+  <artifactId>log-triage-agent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <name>log-triage-agent</name>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Check https://github.com/anthropics/anthropic-sdk-java for the latest version -->
+    <anthropic.version>3.3.0</anthropic.version>
+    <!-- Which stage to run: mvn -q compile exec:java -Dstage=i.m.clean.coder.triage.Stage1FirstCall -->
+    <stage>i.m.clean.coder.triage.Stage1FirstCall</stage>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.anthropic</groupId>
+      <artifactId>anthropic-java</artifactId>
+      <version>${anthropic.version}</version>
+    </dependency>
+
+    <!-- Lombok: generates @Slf4j log field and other boilerplate at compile time -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.46</version>
+      <scope>provided</scope> <!-- only needed at compile time, not in the final JAR -->
+    </dependency>
+
+    <!-- Logback: the actual logging backend that SLF4J delegates to at runtime -->
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.6.3</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <annotationProcessorPaths>
+            <!-- Lombok must be registered here so javac runs its processor -->
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>1.18.38</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.5.0</version>
+        <configuration>
+          <mainClass>${stage}</mainClass>
+          <systemProperties>
+            <systemProperty>
+              <key>slf4j.internal.verbosity</key>
+              <value>WARN</value>
+            </systemProperty>
+          </systemProperties>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

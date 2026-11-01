@@ -1,0 +1,8 @@
+target/
+.idea/
+*.iml
+.vscode/
+.env
+/logs/
+.DS_Store
+.claude/settings.local.json

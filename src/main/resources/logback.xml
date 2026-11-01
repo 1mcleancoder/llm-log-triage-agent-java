@@ -1,0 +1,30 @@
+<configuration statusListener="NopStatusListener">
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <!-- %d = timestamp, %level = INFO/WARN/ERROR, %logger{36} = class name (max 36 chars), %msg = message -->
+      <pattern>%d{HH:mm:ss.SSS} [%level] %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>logs/app.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <!-- rolls daily; also creates the logs/ directory if it doesn't exist -->
+      <fileNamePattern>logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%level] %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Root level: INFO means INFO/WARN/ERROR are shown, DEBUG/TRACE are not -->
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="FILE"/>
+  </root>
+
+  <!-- Silence chatty third-party libraries at WARN only -->
+  <logger name="com.anthropic" level="WARN"/>
+
+</configuration>

@@ -1,0 +1,13 @@
+{
+  "_note": "Ground truth for evals (stage 9). Try not to read it before your agent has had a go.",
+  "question": "Payments started failing around 14:00. What happened?",
+  "severity": "high",
+  "first_seen": "2026-10-25T14:02:16Z",
+  "last_seen": "2026-10-25T14:38:49Z",
+  "affected_services": ["gateway", "payments", "orders"],
+  "trigger": "Campaign FLASH-OCT25 activated at 13:54:20 (orders.log), causing a traffic spike",
+  "root_cause": "Gateway connection pool 'card-acquirer' exhausted (active=20/20, acquire timeouts after 5000 ms), surfacing as ERR-4012 in payments and 502 PAYMENT_FAILED in orders",
+  "red_herrings": ["ERR-2201 in auth.log (benign, all day)", "ERR-4013 in payments.log (recovered on retry, unrelated)"],
+  "suggested_action": "Increase gateway.pool.card-acquirer.max from 20 to 50 and restart gateway instances one at a time; do not restart payments (runbook ERR-4012)",
+  "follow_up": "Pool size was never changed; errors stopped only because campaign traffic dropped, so the problem will recur"
+}
