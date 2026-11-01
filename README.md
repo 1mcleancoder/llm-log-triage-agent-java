@@ -1,15 +1,17 @@
-# Log Triage Agent
+# LLM Log Triage Agent (Java)
 
 > **Note:** Starter scaffold and synthetic data generated with Claude; stages 2+ and all experiments are my own.
 
-WIP: Stage 2 of 9: structured output. Next: tool use.
+An agent that triages a production incident from ~44,000 log lines across four services,
+built stage by stage with the Anthropic Java SDK, with cost and token telemetry on every call.
 
-A practice project for the Claude Certified Developer – Foundations (CCDV-F) exam.
-You build one realistic agent in 9 stages, each one practicing a technique from the course.
+**Status:** stage 2 of 9 (structured output). Next: tool use.
 
-**The problem:** payments started failing around 14:00 on 2026-10-25. About 44,000 log lines
-across four services hold the answer, plus some false leads. Agent should find what 
-happened and return an incident summary an on-call engineer can act on.
+**Highlights so far** ([full notes](NOTES.md)):
+- Hidden thinking tokens used the whole output budget → empty answer with stop_reason=max_tokens
+- `temperature` is gone from the API ("Extra inputs are not permitted"), even on older models
+- Few-shot examples from the *same* incident get copied verbatim; examples from different incidents set conventions
+- Measured cost: ~$0.001 per run on Haiku 5.5; two examples add ~32% input tokens
 
 ## What's in the box
 
@@ -23,8 +25,11 @@ log-triage-agent/
 └── src/main/java/i/m/clean/coder/triage/
     ├── LogFiles.java             Plain-Java log helpers (list, search, read, time window)
     ├── LogFilesSmokeTest.java    Checks the helpers; no API key needed
-    ├── Stage1FirstCall.java      Stage 1, working
-    └── Stage2StructuredOutput.java  Stage 2 skeleton, yours to build
+    ├── ModelPricing.java         Cost per request from a price table (model-prices.json)
+    ├── Stage1FirstCall.java      Stage 1: one excerpt, one question
+    ├── Stage1FirstExperiments.java  Stage 1 experiments (max_tokens, thinking, temperature)
+    ├── Stage2PromptOnly.java     Stage 2a: JSON via prompt only, parsed and validated
+    └── Stage2FewShot.java        Stage 2b: few-shot with examples from different incidents
 ```
 
 ## Setup
@@ -53,19 +58,17 @@ release listed at https://github.com/anthropics/anthropic-sdk-java.
 
 For each stage: **read the lesson, build the stage, then break it on purpose.**
 
-Status: What I've learned so far: see [NOTES.md](NOTES.md)
-
 | Stage | You build | Technique | Course section | Status
 |---|---|---|---|---|
-| 1 | One excerpt, one question | First API call, tokens, `usage`, `stop_reason` | MSO Foundations, Prompting Craft | Checkbox
-| 2 | JSON incident summary | Prompting, XML tags, structured output | Prompting Craft |
-| 3 | Tools in a loop | Tool schemas, tool-use loop, tool errors | Tool Use and Schema Design |
-| 4 | Multi-round investigation | Agent loop, iteration caps, agentic search | Agent Construction |
-| 5 | Context that stays small | Context engineering, compaction, clearing | Context Engineering |
-| 6 | Runbook lookup | RAG: chunking, keyword vs. semantic search | Context Engineering |
-| 7 | An action that needs approval | Human-in-the-loop | Agent Construction |
-| 8 | Log tools as an MCP server | MCP, Claude Code integration | Claude Code, MCP & Integration |
-| 9 | Traces and evals | OpenTelemetry, evals, prompt injection | Production Engineering, Evals & Security |
+| 1 | One excerpt, one question | First API call, tokens, `usage`, `stop_reason` | MSO Foundations, Prompting Craft | ✅ done
+| 2 | JSON incident summary | Prompting, XML tags, structured output | Prompting Craft | 🔄 2a prompt-only ✅, 2b few-shot ✅, 2c structured outputs next 
+| 3 | Tools in a loop | Tool schemas, tool-use loop, tool errors | Tool Use and Schema Design | planned
+| 4 | Multi-round investigation | Agent loop, iteration caps, agentic search | Agent Construction | planned
+| 5 | Context that stays small | Context engineering, compaction, clearing | Context Engineering | planned
+| 6 | Runbook lookup | RAG: chunking, keyword vs. semantic search | Context Engineering | planned
+| 7 | An action that needs approval | Human-in-the-loop | Agent Construction | planned
+| 8 | Log tools as an MCP server | MCP, Claude Code integration | Claude Code, MCP & Integration | planned
+| 9 | Traces and evals | OpenTelemetry, evals, prompt injection | Production Engineering, Evals & Security | planned
 
 ---
 
