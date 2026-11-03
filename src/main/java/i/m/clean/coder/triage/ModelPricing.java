@@ -1,5 +1,6 @@
 package i.m.clean.coder.triage;
 
+import com.anthropic.models.messages.Model;
 import com.anthropic.models.messages.Usage;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -28,9 +29,19 @@ public final class ModelPricing {
                         @JsonProperty("long_context") Rates longContext) {
     }
 
+    private static final ModelPricing INSTANCE;
+
+    static {
+        try {
+            INSTANCE = new ModelPricing();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load model-prices.json", e);
+        }
+    }
+
     private final Map<String, Price> prices;
 
-    public ModelPricing() throws IOException {
+    private ModelPricing() throws IOException {
         try (var in = ModelPricing.class.getResourceAsStream("/model-prices.json")) {
             Map<String, Object> raw = new ObjectMapper().readValue(in, new TypeReference<>() {
             });
@@ -40,11 +51,18 @@ public final class ModelPricing {
         }
     }
 
+    public static ModelPricing getInstance() {
+        return INSTANCE;
+    }
     /**
      * Cost in USD, or empty if the model isn't in the table. Never guesses.
      */
-    public OptionalDouble cost(String modelId, Usage u) {
-        Price p = lookup(modelId);
+    public OptionalDouble cost(Model modelId, Usage u) {
+        if (modelId == null) {
+            return OptionalDouble.empty();
+        }
+
+        Price p = lookup(modelId.toString());
         if (p == null) return OptionalDouble.empty();
 
         long cacheRead = u.cacheReadInputTokens().orElse(0L);
@@ -59,7 +77,7 @@ public final class ModelPricing {
 
         final double cost = (u.inputTokens() * pIn + u.outputTokens() * pOut
                 + cacheWrite * pCw + cacheRead * pCr) / 1_000_000.0;
-        log.info("cost={}, cacheRead={}, cacheWrite={}, promptSize={}, longCtx={}, pIn={}, pOut={}, pCw={}, pCr={}", cost, cacheRead, cacheWrite, promptSize, longCtx, pIn, pOut, pCw, pCr);
+        log.debug("cost={}, cacheRead={}, cacheWrite={}, promptSize={}, longCtx={}, pIn={}, pOut={}, pCw={}, pCr={}", cost, cacheRead, cacheWrite, promptSize, longCtx, pIn, pOut, pCw, pCr);
         return OptionalDouble.of(cost);
     }
 

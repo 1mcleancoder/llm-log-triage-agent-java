@@ -47,9 +47,56 @@ What I learned:
    What happened: with an example from the same incident, the model copied its answer (same first_seen, same wording, same wrong root cause); with examples from
    different incidents it analyzed the logs itself
    Why: models copy examples very closely. 
-   Lesson: Examples should show the shape using a different incident. They also set conventions silently (first_seen = first ERROR line). Cost: two examples added ~2,200 input tokens (+32%) per request.
+   Lesson: Examples should show the shape using a different incident. They also set conventions silently (first_seen = first ERROR line). 
 
 9. About: Evidence validation
    What you expected: if every evidence line exists in the logs, the evidence is good
    What happened: a "health check ok" line passed the check but supported nothing
    Why: a verbatim check proves the evidence is grounded (not invented), not that it's relevant. Relevance needs a human review or an LLM judge (stage 9).
+
+10. About: Structured Output input tokens
+   What you expected: Input tokens would stay the same
+   What happened: They increase by 400 tokens
+   Why: Structured output is sent as a schema which is much more verbose which increase the token size
+
+11. About: Removing examples with Structured output
+    What you expected: output quality would be almost same
+    What happened: output quality is affected such that the root cause guess contains much more text
+    Why: schema enforces shape and examples and descriptions guide content
+
+12. About: example cost!!
+    What you expected: example would increase cost
+    What happened: examples decrease overall cost
+    Why: example can result in more concise output and since output tokens cost 5x more in Haiku so concise output means less costly.
+13. About:
+    What you expected:
+    What happened:
+    Why:
+14. About:
+    What you expected:
+    What happened:
+    Why:
+15. About:
+    What you expected:
+    What happened:
+    Why:
+16. About:
+    What you expected:
+    What happened:
+    Why:
+17. About:
+    What you expected:
+    What happened:
+    Why:
+18. About:
+    What you expected:
+    What happened:
+    Why:
+19. About:
+    What you expected:
+    What happened:
+    Why:
+20. About:
+    What you expected:
+    What happened:
+    Why:
