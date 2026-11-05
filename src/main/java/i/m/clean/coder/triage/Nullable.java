@@ -6,5 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.FIELD, ElementType.METHOD, ElementType.RECORD_COMPONENT, ElementType.PARAMETER})
+@Target({
+  ElementType.FIELD,
+  ElementType.METHOD,
+  ElementType.RECORD_COMPONENT,
+  ElementType.PARAMETER
+})
 public @interface Nullable {}

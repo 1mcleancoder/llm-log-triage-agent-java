@@ -1,7 +1,7 @@
 {
   "_note": "Ground truth for evals (stage 9). Try not to read it before your agent has had a go.",
   "question": "Payments started failing around 14:00. What happened?",
-  "severity": "high",
+  "severity": "HIGH",
   "first_seen": "2026-10-25T14:02:16Z",
   "last_seen": "2026-10-25T14:38:49Z",
   "affected_services": ["gateway", "payments", "orders"],

@@ -34,7 +34,10 @@ log-triage-agent/
 
 ## Setup
 
-1. Java 17+ and Maven 3.9+.
+1. JDK 17 exactly (not 18+) and Maven 3.9+. The build enforces this — set `JAVA_HOME` before running:
+   ```bash
+   export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+   ```
 2. An API key from the Claude Console with a small prepaid balance ($5 is plenty) and a monthly spend limit.
 3. Set the key as an environment variable, never in code:
    ```bash
@@ -52,23 +55,30 @@ log-triage-agent/
 If Maven can't find the SDK version in `pom.xml`, update `anthropic.version` to the latest
 release listed at https://github.com/anthropics/anthropic-sdk-java.
 
+**Code style:** the project uses [Google Java Format](https://github.com/google/google-java-format) via `fmt-maven-plugin`. `mvn verify` will fail if any file is not formatted.
+
+For IntelliJ: install the [google-java-format plugin](https://plugins.jetbrains.com/plugin/8527-google-java-format), enable it under `Settings → google-java-format Settings`, then turn on `Settings → Tools → Actions on Save → Reformat code` to auto-format on every save. To format manually: `⌘⌥L` or run:
+```bash
+mvn fmt:format
+```
+
 **Cost tip:** build with Haiku (the default in stage 1). Switch to a bigger model only to compare quality.
 
 ## How to work
 
 For each stage: **read the lesson, build the stage, then break it on purpose.**
 
-| Stage | You build | Technique | Course section | Status
-|---|---|---|---|---|
-| 1 | One excerpt, one question | First API call, tokens, `usage`, `stop_reason` | MSO Foundations, Prompting Craft | ✅ done
-| 2 | JSON incident summary | Prompting, XML tags, structured output | Prompting Craft | 🔄 2a prompt-only ✅, 2b few-shot ✅, 2c structured outputs next 
-| 3 | Tools in a loop | Tool schemas, tool-use loop, tool errors | Tool Use and Schema Design | planned
-| 4 | Multi-round investigation | Agent loop, iteration caps, agentic search | Agent Construction | planned
-| 5 | Context that stays small | Context engineering, compaction, clearing | Context Engineering | planned
-| 6 | Runbook lookup | RAG: chunking, keyword vs. semantic search | Context Engineering | planned
-| 7 | An action that needs approval | Human-in-the-loop | Agent Construction | planned
-| 8 | Log tools as an MCP server | MCP, Claude Code integration | Claude Code, MCP & Integration | planned
-| 9 | Traces and evals | OpenTelemetry, evals, prompt injection | Production Engineering, Evals & Security | planned
+| Stage | You build                     | Technique                                      | Course section                           | Status                                                         |
+|-------|-------------------------------|------------------------------------------------|------------------------------------------|----------------------------------------------------------------|
+| 1     | One excerpt, one question     | First API call, tokens, `usage`, `stop_reason` | MSO Foundations, Prompting Craft         | ✅ done                                                         |
+| 2     | JSON incident summary         | Prompting, XML tags, structured output         | Prompting Craft                          | 🔄 2a prompt-only ✅, 2b few-shot ✅, 2c structured outputs next |
+| 3     | Tools in a loop               | Tool schemas, tool-use loop, tool errors       | Tool Use and Schema Design               | planned                                                        |
+| 4     | Multi-round investigation     | Agent loop, iteration caps, agentic search     | Agent Construction                       | planned                                                        |
+| 5     | Context that stays small      | Context engineering, compaction, clearing      | Context Engineering                      | planned                                                        |
+| 6     | Runbook lookup                | RAG: chunking, keyword vs. semantic search     | Context Engineering                      | planned                                                        |
+| 7     | An action that needs approval | Human-in-the-loop                              | Agent Construction                       | planned                                                        |
+| 8     | Log tools as an MCP server    | MCP, Claude Code integration                   | Claude Code, MCP & Integration           | planned                                                        |
+| 9     | Traces and evals              | OpenTelemetry, evals, prompt injection         | Production Engineering, Evals & Security | planned                                                        |
 
 ---
 
@@ -88,7 +98,7 @@ For each stage: **read the lesson, build the stage, then break it on purpose.**
 
 ```json
 {
-  "severity": "high | medium | low | unknown",
+  "severity": "HIGH | MEDIUM | LOW | UNKNOWN",
   "first_seen": "ISO timestamp or null",
   "affected_services": ["..."],
   "root_cause_guess": "string or \"unknown\"",
