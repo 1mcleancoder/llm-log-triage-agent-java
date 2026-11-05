@@ -5,13 +5,15 @@
 An agent that triages a production incident from ~44,000 log lines across four services,
 built stage by stage with the Anthropic Java SDK, with cost and token telemetry on every call.
 
-**Status:** stage 2 of 9 (structured output). Next: tool use.
+**Status:** stage 3 of 9 (tool use) done. Next: stage 4 (find the trigger).
 
 **Highlights so far** ([full notes](NOTES.md)):
 - Hidden thinking tokens used the whole output budget → empty answer with stop_reason=max_tokens
 - `temperature` is gone from the API ("Extra inputs are not permitted"), even on older models
 - Few-shot examples from the *same* incident get copied verbatim; examples from different incidents set conventions
-- Measured cost: ~$0.001 per run on Haiku 5.5; two examples add ~32% input tokens
+- Measured cost: ~$0.001 per single call on Haiku 5.5; ~$0.008 for a 5-turn tool-using investigation
+- Same text costs ~30% more tokens on Haiku 5.5 than 4.5 (tokenizer); two examples add ~500 tokens, the output schema ~500
+- With tools, the agent searched gateway.log and found the real cause (connection pool `active=20/20`), linking it to payments errors via one trace id
 
 ## What's in the box
 
@@ -26,10 +28,18 @@ log-triage-agent/
     ├── LogFiles.java             Plain-Java log helpers (list, search, read, time window)
     ├── LogFilesSmokeTest.java    Checks the helpers; no API key needed
     ├── ModelPricing.java         Cost per request from a price table (model-prices.json)
+    ├── LogUtils.java             Evidence check: are the model's evidence lines really in the logs?
+    ├── TriageUtils.java          Shared helpers: XML tag wrapper, telemetry printout
+    ├── IncidentSummary.java      The structured answer (record + field descriptions = JSON schema)
+    ├── IncidentSeverity.java     Severity enum (HIGH, MEDIUM, LOW, UNKNOWN)
+    ├── Nullable.java             Runtime @Nullable so optional fields allow null in the schema
     ├── Stage1FirstCall.java      Stage 1: one excerpt, one question
     ├── Stage1FirstExperiments.java  Stage 1 experiments (max_tokens, thinking, temperature)
     ├── Stage2PromptOnly.java     Stage 2a: JSON via prompt only, parsed and validated
-    └── Stage2FewShot.java        Stage 2b: few-shot with examples from different incidents
+    ├── Stage2FewShot.java        Stage 2b: few-shot with examples from different incidents
+    ├── Stage2StructuredOutput.java  Stage 2c: structured outputs via outputConfig(IncidentSummary.class)
+    ├── ToolUtils.java            Tool definitions: list_files, search_logs, read_lines
+    └── Stage3ToolUse.java        Stage 3: tool-use loop with per-turn token and cost telemetry
 ```
 
 ## Setup
@@ -68,17 +78,17 @@ mvn fmt:format
 
 For each stage: **read the lesson, build the stage, then break it on purpose.**
 
-| Stage | You build                     | Technique                                      | Course section                           | Status                                                         |
-|-------|-------------------------------|------------------------------------------------|------------------------------------------|----------------------------------------------------------------|
-| 1     | One excerpt, one question     | First API call, tokens, `usage`, `stop_reason` | MSO Foundations, Prompting Craft         | ✅ done                                                         |
-| 2     | JSON incident summary         | Prompting, XML tags, structured output         | Prompting Craft                          | 🔄 2a prompt-only ✅, 2b few-shot ✅, 2c structured outputs next |
-| 3     | Tools in a loop               | Tool schemas, tool-use loop, tool errors       | Tool Use and Schema Design               | planned                                                        |
-| 4     | Multi-round investigation     | Agent loop, iteration caps, agentic search     | Agent Construction                       | planned                                                        |
-| 5     | Context that stays small      | Context engineering, compaction, clearing      | Context Engineering                      | planned                                                        |
-| 6     | Runbook lookup                | RAG: chunking, keyword vs. semantic search     | Context Engineering                      | planned                                                        |
-| 7     | An action that needs approval | Human-in-the-loop                              | Agent Construction                       | planned                                                        |
-| 8     | Log tools as an MCP server    | MCP, Claude Code integration                   | Claude Code, MCP & Integration           | planned                                                        |
-| 9     | Traces and evals              | OpenTelemetry, evals, prompt injection         | Production Engineering, Evals & Security | planned                                                        |
+| Stage | You build                     | Technique                                      | Course section                           | Status                                                      |
+|-------|-------------------------------|------------------------------------------------|------------------------------------------|-------------------------------------------------------------|
+| 1     | One excerpt, one question     | First API call, tokens, `usage`, `stop_reason` | MSO Foundations, Prompting Craft         | ✅ done                                                      |
+| 2     | JSON incident summary         | Prompting, XML tags, structured output         | Prompting Craft                          | ✅ done (2a prompt-only, 2b few-shot, 2c structured outputs) |
+| 3     | Tools in a loop               | Tool schemas, tool-use loop, tool errors       | Tool Use and Schema Design               | ✅ done                                                      |
+| 4     | Multi-round investigation     | Agent loop, iteration caps, agentic search     | Agent Construction                       | planned                                                     |
+| 5     | Context that stays small      | Context engineering, compaction, clearing      | Context Engineering                      | planned                                                     |
+| 6     | Runbook lookup                | RAG: chunking, keyword vs. semantic search     | Context Engineering                      | planned                                                     |
+| 7     | An action that needs approval | Human-in-the-loop                              | Agent Construction                       | planned                                                     |
+| 8     | Log tools as an MCP server    | MCP, Claude Code integration                   | Claude Code, MCP & Integration           | planned                                                     |
+| 9     | Traces and evals              | OpenTelemetry, evals, prompt injection         | Production Engineering, Evals & Security | planned                                                     |
 
 ---
 
@@ -118,11 +128,11 @@ Make it return `"unknown"` instead.
 
 **Goal:** stop pasting logs by hand. Give Claude three tools backed by `LogFiles`:
 
-| Tool | Wraps | Purpose |
-|---|---|---|
-| `list_files` | `listFiles()` | See which logs exist |
-| `search_logs(pattern, file?)` | `search(...)` | Find lines by regex |
-| `read_lines(file, from, to)` | `readLines(...)` | Read context around a hit |
+| Tool                          | Wraps            | Purpose                   |
+|-------------------------------|------------------|---------------------------|
+| `list_files`                  | `listFiles()`    | See which logs exist      |
+| `search_logs(pattern, file?)` | `search(...)`    | Find lines by regex       |
+| `read_lines(file, from, to)`  | `readLines(...)` | Read context around a hit |
 
 **Hints:**
 - Write the descriptions like docs for a new teammate: what it does, when to use it, what it returns.
