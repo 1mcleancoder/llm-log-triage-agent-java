@@ -5,8 +5,14 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -119,5 +125,93 @@ public final class LogFiles {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+  }
+
+  /**
+   * Produces the output like "13:50 42 | 13:51 39 | 13:52 44 | 13:53 41 | 13:54 118 | 13:55 171 …"
+   *
+   * @param regex to match
+   * @param file if not specified then it searches all the files
+   * @param fromTs the log file line ISO timestamp to start search from
+   * @param toTs the log file line ISO timestamp to end search
+   * @param bktInterval can have only 3 values: 30s, 1m, 5m
+   * @return a concatenated string with | as separator, containing timestamp at bucket interval with
+   *     the count of regex matches
+   */
+  public String countMatches(
+      String regex, String file, String fromTs, String toTs, String bktInterval) {
+    long bktSize = getBucketIntervalMillis(bktInterval);
+    long from = Instant.parse(fromTs).toEpochMilli();
+    long to = Instant.parse(toTs).toEpochMilli();
+
+    final long fromLb = from - (from % bktSize); // lower bound as per bucket bktSize
+    final long toUp =
+        to % bktSize == 0 ? to : to - (to % bktSize) + bktSize; // upper bound as per bucket bktSize
+
+    long numBuckets = (to - from) / bktSize;
+    if (numBuckets > 240) {
+      throw new IllegalArgumentException("too many buckets: %s".formatted(numBuckets));
+    }
+
+    Map<Long, Integer> countsByBktSize =
+        computeCountsByBucketSize(regex, file, fromLb, toUp, bktSize);
+    return combineTimestamps(bktSize, countsByBktSize);
+  }
+
+  private static String combineTimestamps(long bktSize, Map<Long, Integer> countsByBktSize) {
+    String FORMAT = (bktSize == 300000L) ? "HH:mm" : "HH:mm:ss";
+
+    StringBuilder builder = new StringBuilder(countsByBktSize.size() * 10);
+    int count = 0;
+    for (Map.Entry<Long, Integer> entry : countsByBktSize.entrySet()) {
+      ZonedDateTime zonedDateTime = Instant.ofEpochMilli(entry.getKey()).atZone(ZoneOffset.UTC);
+      String fmtdTime = zonedDateTime.format(DateTimeFormatter.ofPattern(FORMAT));
+
+      builder.append(fmtdTime).append(" ").append(entry.getValue());
+      ++count;
+
+      if (count < countsByBktSize.size()) {
+        builder.append(" | ");
+      }
+    }
+    return builder.toString();
+  }
+
+  private Map<Long, Integer> computeCountsByBucketSize(
+      String regex, String file, long from, long to, long size) {
+    Map<Long, Integer> countsByTsSize = new TreeMap<>();
+    // initialize the bucket
+    for (long b = from; b < to; b += size) {
+      countsByTsSize.put(b, 0);
+    }
+
+    Pattern p = Pattern.compile(regex);
+    for (Path f : targets(file)) {
+      List<String> lines = read(f);
+      for (String line : lines) {
+        if (p.matcher(line).find()) {
+          String ts = line.length() >= 24 ? line.substring(0, 24) : "";
+          if (ts.isEmpty()) {
+            continue;
+          }
+          long time = Instant.parse(ts).toEpochMilli();
+          if (time >= from && time <= to) {
+            long timeBkt = time - (time % size);
+            countsByTsSize.merge(timeBkt, 1, Integer::sum);
+          }
+        }
+      }
+    }
+    return countsByTsSize;
+  }
+
+  private static long getBucketIntervalMillis(String bktInterval) {
+    return switch (bktInterval) {
+      case "30s" -> 30 * 1000;
+      case "1m" -> 60 * 1000;
+      case "5m" -> 5 * 60 * 1000;
+      default ->
+          throw new IllegalArgumentException("Invalid bucket interval: %s".formatted(bktInterval));
+    };
   }
 }

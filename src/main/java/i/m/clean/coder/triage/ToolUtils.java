@@ -93,4 +93,57 @@ public class ToolUtils {
                 .build())
         .build();
   }
+
+  public static Tool createCountMatchesTool() {
+    return Tool.builder()
+        .name("count_matches")
+        .description(
+            """
+            Count the regex matches for the specific time window. Use this to find out the count of regex matching between from and to time intervals with the specified bucket size.
+            tip: search_logs first to find the exact line format, then count it.
+            e.g. with regex pattern in log file="orders.log", fromTs="2026-10-25T12:05:06.444Z", toTs="2026-10-25T12:08:28.846Z", bktInternal="30s", when it returns the string
+            "12:05:00 9 | 12:05:30 16 | 12:06:00 8 | 12:06:30 8 | 12:07:00 8 | 12:07:30 5 | 12:08:00 9" where there are 7 strings concatenated with | chars, each string represents two values, the lower bound timestamp
+            starting with the 12:05:00 which is the lowerbound fromTs and 9 which represents the regex count of lines between this time and this time plus the next bucket interval time.
+            Also the number of time intervals should not exceed 240 say bktInterval=1m, fromTs="2026-10-25T12:00:01,456Z", toTs="2026-10-25T16:01:04.846Z", this is invalid input since number of intervals is 242
+            which is greater than 240.
+            """)
+        .inputSchema(
+            Tool.InputSchema.builder()
+                .properties(
+                    JsonValue.from(
+                        Map.of(
+                            "regex",
+                            Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "Java regex, e.g. ERR-4012 or trace=91f10859aa837319"),
+                            "file",
+                            Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "Optional: payments.log, gateway.log, orders.log or auth.log"),
+                            "fromTs",
+                            Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "Starting timestamp representing a timestamp of a specific log line e.g. 2026-10-25T12:08:28.846Z"),
+                            "toTs",
+                            Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "Ending timestamp representing a timestamp of a specific log line e.g. 2026-10-25T12:16:18.456Z"),
+                            "bktInterval",
+                            Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "Bucket interval, can have 3 values: 30s, 1m and 5m. Here 30s represents 30 seconds etc."))))
+                .required(List.of("regex", "fromTs", "toTs", "bktInterval"))
+                .build())
+        .build();
+  }
 }

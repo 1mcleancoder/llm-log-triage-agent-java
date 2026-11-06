@@ -6,8 +6,7 @@ import java.util.List;
 
 record IncidentSummary(
     @JsonPropertyDescription("Overall impact") IncidentSeverity severity,
-    @JsonPropertyDescription(
-            "Timestamp of the first line where this error or ref to the request is first encountered")
+    @JsonPropertyDescription("Timestamp of the first line when this error is first encountered")
         @JsonProperty("first_seen")
         @Nullable
         String firstSeen,
@@ -18,4 +17,7 @@ record IncidentSummary(
     @JsonPropertyDescription("Actual log lines containing the error") List<String> evidence,
     @JsonPropertyDescription("possible actions to fix the situation")
         @JsonProperty("suggested_action")
-        String suggestedAction) {}
+        String suggestedAction,
+    @JsonPropertyDescription(
+            "Outputs the metrics e.g. [\"orders/5min: 13:50 ≈ 250 → 13:55 ≈ 900\"]")
+        List<String> metrics) {}
