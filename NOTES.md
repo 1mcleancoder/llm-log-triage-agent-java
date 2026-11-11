@@ -1,5 +1,3 @@
-WIP: Stage 2 of 9: structured output. Next: tool use.
-
 What I learned:
 1. About: Temperature support
    What you expected: temperature field should be there
@@ -142,4 +140,5 @@ What I learned:
     What you expected:
     What happened:
     Why:
+    Lesson: 
     (leave last one empty so it is easy to fill next time)
