@@ -150,7 +150,7 @@ public class TriageUtils {
     StringBuilder sep = new StringBuilder();
     for (int w : widths) sep.append("-".repeat(w)).append("  ");
 
-    StringBuilder sb = new StringBuilder("\n---- telemetry ----\n");
+    StringBuilder sb = new StringBuilder("\nTelemetry is: ------\n");
     sb.append(format.formatted((Object[]) headers)).append("\n");
     sb.append(sep).append("\n");
     for (String[] row : rows) sb.append(format.formatted((Object[]) row)).append("\n");

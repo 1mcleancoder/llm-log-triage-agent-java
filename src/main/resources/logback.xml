@@ -19,12 +19,13 @@
   </appender>
 
   <!-- Root level: INFO means INFO/WARN/ERROR are shown, DEBUG/TRACE are not -->
-  <root level="INFO">
+  <root level="DEBUG">
     <appender-ref ref="CONSOLE"/>
     <appender-ref ref="FILE"/>
   </root>
 
   <!-- Silence chatty third-party libraries at WARN only -->
   <logger name="com.anthropic" level="WARN"/>
+  <logger name="com.github.victools" level="WARN"/>
 
 </configuration>

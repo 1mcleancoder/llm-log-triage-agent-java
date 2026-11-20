@@ -48,11 +48,13 @@ public final class LogFiles {
    * .log file when {@code file} is null.
    */
   public List<String> search(String regex, String file, int maxResults) {
-    Pattern p = Pattern.compile(regex);
+    Pattern p = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
+
     List<String> out = new ArrayList<>();
     for (Path f : targets(file)) {
       List<String> lines = read(f);
-      for (int i = 0; i < lines.size() && out.size() < maxResults; i++) {
+      //      for (int i = 0; i < lines.size() && out.size() < maxResults; i++) {
+      for (int i = 0; i < lines.size(); i++) {
         if (p.matcher(lines.get(i)).find()) {
           out.add(f.getFileName() + ":" + (i + 1) + ": " + lines.get(i));
         }

@@ -24,7 +24,7 @@ public class ToolUtils {
         .name("search_logs")
         .description(
             """
-            Search log files for lines matching a Java regex. Use this to find errors,
+            Search log files for lines matching a Java regex with case insensitive. Use this to find errors,
             error codes, or all lines for one trace id. Returns up to 50 matching lines
             as 'file:line: text'. Omit 'file' to search all four logs.
             """)

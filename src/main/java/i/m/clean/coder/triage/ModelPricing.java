@@ -76,9 +76,9 @@ public final class ModelPricing {
     final double cost =
         (u.inputTokens() * pIn + u.outputTokens() * pOut + cacheWrite * pCw + cacheRead * pCr)
             / 1_000_000.0;
-    log.debug(
+    log.trace(
         "cost={}, cacheRead={}, cacheWrite={}, promptSize={}, longCtx={}, pIn={}, pOut={}, pCw={}, pCr={}",
-        cost,
+        String.format("%.4f", cost),
         cacheRead,
         cacheWrite,
         promptSize,
