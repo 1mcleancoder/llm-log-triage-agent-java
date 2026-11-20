@@ -2,9 +2,13 @@ package i.m.clean.coder.triage;
 
 import com.anthropic.core.JsonValue;
 import com.anthropic.models.messages.Tool;
+import com.anthropic.models.messages.ToolUseBlock;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ToolUtils {
   public static Tool createListFilesTool() {
     return Tool.builder()
@@ -19,6 +23,7 @@ public class ToolUtils {
         .build();
   }
 
+  @SuppressWarnings("unchecked")
   public static Tool createSearchLogsTool() {
     return Tool.builder()
         .name("search_logs")
@@ -56,6 +61,7 @@ public class ToolUtils {
         .build();
   }
 
+  @SuppressWarnings("unchecked")
   public static Tool createReadLinesTool() {
     return Tool.builder()
         .name("read_lines")
@@ -94,6 +100,7 @@ public class ToolUtils {
         .build();
   }
 
+  @SuppressWarnings("unchecked")
   public static Tool createCountMatchesTool() {
     return Tool.builder()
         .name("count_matches")
@@ -145,5 +152,79 @@ public class ToolUtils {
                 .required(List.of("regex", "fromTs", "toTs", "bktInterval"))
                 .build())
         .build();
+  }
+
+  public static String runTool(ToolUseBlock tool, final LogFiles logFiles) {
+    switch (tool.name()) {
+      case "list_files":
+        log.atDebug().log("[tool_use: name={}]", tool.name());
+        return String.join(",", logFiles.listFiles());
+
+      case "search_logs":
+        record SearchArgs(String regex, String file, int maxResults) {}
+        final SearchArgs args = tool._input().convert(SearchArgs.class);
+        //        int cap = Math.min(args.maxResults, 50);
+          assert args != null;
+          List<String> hits = logFiles.search(args.regex(), args.file(), args.maxResults);
+        boolean truncated = hits.size() > args.maxResults;
+        String body =
+            String.join("\n", hits.subList(0, Math.min(args.maxResults + 1, hits.size())));
+        log.atDebug().log(
+            "[tool_use: name={}, SearchArgs={}, truncated={}]", tool.name(), args, truncated);
+        return truncated
+            ? body
+                + "\n[truncated: "
+                + hits.size()
+                + " matches - "
+                + getSearchEntriesSummary(hits)
+                + "; narrow the regex or pick a file]"
+            : body;
+
+      case "read_lines":
+        record ReadLineArgs(String file, int from, int to, int maxLines) {}
+        final ReadLineArgs rlArgs = tool._input().convert(ReadLineArgs.class);
+          assert rlArgs != null;
+          List<String> readLines =
+            logFiles.readLines(rlArgs.file, rlArgs.from, rlArgs.to, rlArgs.maxLines);
+        log.atDebug().log(
+            "[tool_use: name={}, args={}, matchingLines.size()={}]",
+            tool.name(),
+            rlArgs,
+            readLines.size());
+        return String.join("\n", readLines);
+
+      case "count_matches":
+        record CountArgs(String regex, String file, String from, String to, String bktInterval) {}
+        final CountArgs cArgs = tool._input().convert(CountArgs.class);
+          assert cArgs != null;
+          String matches =
+            logFiles.countMatches(cArgs.regex, cArgs.file, cArgs.from, cArgs.to, cArgs.bktInterval);
+        log.atDebug().log(
+            "[tool_use: name={}, args={}, matchingLines.size()={}]",
+            tool.name(),
+            cArgs,
+            matches.length() > 20 ? matches.substring(0, 20) + " ... " : matches);
+        return matches;
+    }
+    throw new IllegalArgumentException("Unrecognized tool: %s".formatted(tool.name()));
+  }
+
+  public static String getSearchEntriesSummary(List<String> hits) {
+    Map<String, Integer> countByFileName = new HashMap<>();
+    for (String hit : hits) {
+      String fileName = hit.substring(0, hit.indexOf(':'));
+      countByFileName.merge(fileName, 1, Integer::sum);
+    }
+
+    StringBuilder summary = new StringBuilder();
+    int i = 0;
+    for (Map.Entry<String, Integer> entry : countByFileName.entrySet()) {
+      summary.append(entry.getKey()).append(" ").append(entry.getValue());
+      if (i != countByFileName.size() - 1) {
+        summary.append(", ");
+      }
+    }
+
+    return summary.toString();
   }
 }
