@@ -1,6 +1,7 @@
 package i.m.clean.coder.triage;
 
 import java.util.List;
+import java.util.Set;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -15,40 +16,133 @@ record RunResult(
     long latencyMs,
     @Getter List<Telemetry> telemetries) {
 
-  public boolean isTriggerFound() {
+  /** Level 1: traffic surge AND pool saturation both described */
+  public boolean foundMechanism() {
+    if (summary == null) return false;
+    String g = summary.rootCauseGuess().toLowerCase();
+    boolean load = g.matches("(?s).*(traffic|surge|spike|burst|volume|quadrupl|4x).*");
+    boolean pool = g.contains("pool") && g.matches("(?s).*(saturat|20/20|exhaust|full).*");
+    return load && pool;
+  }
+
+  /** Level 2: found the actual trigger line, not just the word "campaign" from the 14:40 note */
+  public boolean foundTrigger() {
     if (summary == null || summary.rootCauseGuess() == null) {
       return false;
     }
-    final String guess = summary.rootCauseGuess().toLowerCase();
-    return guess.contains("flash-oct25") || guess.contains("campaign");
+    return summary.evidence().stream().anyMatch(e -> e.contains("campaign FLASH-OCT25 activated"));
   }
 
-  public String toString() {
-    return "answered=%s, endedBy=%s, foundTrigger(summary)=%s, turns=%s, cost=%s"
-        .formatted(answered, endedBy, isTriggerFound(), turns, String.format("%.4f", cost));
+  /** Level 3: every evidence line exists verbatim in the logs */
+  public List<String> fabricatedEvidence(Set<String> allLines) {
+    if (summary == null) return List.of();
+    return summary.evidence().stream()
+        .filter(e -> !allLines.contains(LogFiles.extractLogLine(e).strip()))
+        .toList();
   }
 
-  public static void printResults(List<RunResult> results) {
-    double totalTurns = 0;
-    double totalCost = 0;
-    int triggerFound = 0;
-    int numBudget = 0;
+  /** Overall pass: found the trigger and made nothing up */
+  public boolean passed(boolean triggerFound, List<String> fabricatedEvidences) {
+    return triggerFound && fabricatedEvidences.isEmpty();
+  }
 
-    for (RunResult result : results) {
-      totalTurns += result.turns;
-      totalCost += result.cost;
-      triggerFound += result.isTriggerFound() ? 1 : 0;
-      numBudget += result.endedBy != Stage4Accuracy.EndedBy.end_turn ? 1 : 0;
+  public String toPrettyString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("answered     : ").append(answered).append("\n");
+    sb.append("endedBy      : ").append(endedBy).append("\n");
+    sb.append("turns        : ").append(turns).append("\n");
+    sb.append("inputTokens  : ").append(inputTokens).append("\n");
+    sb.append("cost         : ").append(String.format("%.6f", cost)).append("\n");
+    sb.append("latencyMs    : ").append(latencyMs).append("\n");
+    if (summary == null) {
+      sb.append("summary      : null\n");
+    } else {
+      sb.append("summary:\n");
+      sb.append("  severity         : ").append(summary.severity()).append("\n");
+      sb.append("  firstSeen        : ").append(summary.firstSeen()).append("\n");
+      sb.append("  affectedServices :\n");
+      summary.affectedServices().forEach(s -> sb.append("    - ").append(s).append("\n"));
+      sb.append("  rootCauseGuess   : ").append(summary.rootCauseGuess()).append("\n");
+      sb.append("  suggestedAction  : ").append(summary.suggestedAction()).append("\n");
+      sb.append("  evidence         :\n");
+      summary.evidence().forEach(e -> sb.append("    - ").append(e).append("\n"));
+      sb.append("  metrics          :\n");
+      summary.metrics().forEach(m -> sb.append("    - ").append(m).append("\n"));
+    }
+    return sb.toString();
+  }
 
-      log.info(result.toString());
+  public void logPretty() {
+    log.info("\n{}", toPrettyString());
+  }
+
+  public boolean isAnswerCutShort() {
+    if (summary == null || summary.rootCauseGuess() == null) {
+      return false;
     }
 
+    return summary.rootCauseGuess().contains("Budget reached");
+  }
+
+  public static void printResults(List<RunResult> results, Set<String> logLines) {
+    int numBudget = 0;
+    int countPass = 0;
+    int countMechanism = 0;
+    int countTriggerFound = 0;
+    int countGrounded = 0;
+    double countTurns = 0;
+    int countCutshort = 0;
+    double totalCost = 0;
+
+    log.info("=".repeat(120));
+    int i = 0;
+    for (RunResult result : results) {
+      final boolean foundMech = result.foundMechanism();
+      countMechanism += foundMech ? 1 : 0;
+
+      countTurns += result.turns;
+      totalCost += result.cost;
+      final boolean triggerFound = result.foundTrigger();
+      countTriggerFound += triggerFound ? 1 : 0;
+      numBudget += result.endedBy != Stage4Accuracy.EndedBy.end_turn ? 1 : 0;
+
+      List<String> fabricatedEvidences = result.fabricatedEvidence(logLines);
+      countGrounded = fabricatedEvidences.isEmpty() ? 1 : 0;
+      final boolean isPass = result.passed(triggerFound, fabricatedEvidences);
+      countPass += isPass ? 1 : 0;
+
+      final boolean isCutShort = result.isAnswerCutShort();
+      countCutshort += isCutShort ? 1 : 0;
+      log.info(
+          "run={}, answered={}, endedBy={}, turns={}, cost={} | mechanism={} trigger={} grounded={} | {}\n",
+          i++,
+          result.answered,
+          result.endedBy,
+          result.turns,
+          String.format("%.4f", result.cost),
+          foundMech ? "Y" : "N",
+          triggerFound ? "Y" : "N",
+          fabricatedEvidences.isEmpty() ? "Y" : "N",
+          isPass ? "PASS" : "FAIL");
+    }
+
+    log.info("Summary: ");
+    log.info("=".repeat(120));
     log.info(
-        "trigger found {}/{} | avg {} turns | total ${} | {} cut short by budget",
-        triggerFound,
+        "PASS {}/{} | mechanism {}/{} | trigger {}/{} | grounded {}/{} | avg {} turns | avg ${}/run | withinBudget {}/{} | cut short {}",
+        countPass,
         results.size(),
-        String.format("%.2f", totalTurns / results.size()),
-        String.format("%.2f", totalCost),
-        numBudget == 0 ? "none" : numBudget);
+        countMechanism,
+        results.size(),
+        countTriggerFound,
+        results.size(),
+        countGrounded,
+        results.size(),
+        String.format("%.2f", countTurns / results.size()),
+        String.format("%.3f", totalCost / results.size()),
+        numBudget,
+        results.size(),
+        countCutshort);
+    log.info("=".repeat(120));
   }
 }

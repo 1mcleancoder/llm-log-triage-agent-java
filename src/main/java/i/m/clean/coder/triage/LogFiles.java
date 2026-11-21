@@ -9,11 +9,9 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -215,5 +213,36 @@ public final class LogFiles {
       default ->
           throw new IllegalArgumentException("Invalid bucket interval: %s".formatted(bktInterval));
     };
+  }
+
+  public Set<String> getAllLogLines() {
+    try (Stream<Path> s = Files.list(dir)) {
+      return s.filter(p -> p.toString().endsWith(".log"))
+          .sorted()
+          .map(
+              p -> {
+                try {
+                  return Files.readAllLines(p);
+                } catch (IOException e) {
+                  throw new UncheckedIOException(e);
+                }
+              })
+          .flatMap(Collection::stream)
+          .collect(Collectors.toSet());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Extracts the log line from a hit in {@code "filename.log:lineNumber: logline"} format. Returns
+   * the string as-is if it doesn't match the prefix pattern.
+   */
+  public static String extractLogLine(String hit) {
+    int space = hit.indexOf(": ");
+    if (space != -1 && hit.substring(0, space).matches("[\\w.-]+\\.log:\\d+")) {
+      return hit.substring(space + 2);
+    }
+    return hit;
   }
 }

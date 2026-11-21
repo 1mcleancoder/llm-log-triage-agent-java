@@ -10,8 +10,8 @@ public record Telemetry(
     Counts inputTokens,
     Counts outputTokens,
     Counts thinkingTokens,
-    long latencyMs,
-    double cost) {
+    Counts latencyMs,
+    Counts cost) {
 
   record Counts(long value, long total) {}
 
@@ -29,7 +29,9 @@ public record Telemetry(
       "think_tok",
       "think_%",
       "latency_ms",
-      "cost"
+      "latency_ms_%",
+      "cost",
+      "cost_%"
     };
 
     String[][] rows = new String[telemetries.size()][headers.length];
@@ -46,13 +48,15 @@ public record Telemetry(
       rows[i][7] = t.thinkingTokens().value() + "/" + t.thinkingTokens().total();
       rows[i][8] =
           pct(prev != null ? prev.thinkingTokens().value() : -1, t.thinkingTokens().value());
-      rows[i][9] = String.valueOf(t.latencyMs());
-      rows[i][10] = t.cost() > 0 ? "%.6f".formatted(t.cost()) : "unknown";
+      rows[i][9] = t.latencyMs().value() + "/" + t.latencyMs().total();
+      rows[i][10] = pct(prev != null ? prev.latencyMs().value() : -1, t.latencyMs().value());
+      String cost = t.cost().value() > 0 ? "%.5f".formatted(t.cost().value() / 1_000_000.0) : "unknown";
+      String totalCost = t.cost().total() > 0 ? "%.5f".formatted(t.cost().total() / 1_000_000.0) : "unknown";
+      rows[i][11] = cost + "/" + totalCost;
+      rows[i][12] = pct(prev != null ? prev.cost().value() : -1, t.cost().value());
     }
 
     Telemetry last = telemetries.get(telemetries.size() - 1);
-    long totalLatency = telemetries.stream().mapToLong(Telemetry::latencyMs).sum();
-    double totalCost = telemetries.stream().mapToDouble(Telemetry::cost).sum();
     String[] totals = {
       "TOTAL",
       "-",
@@ -63,8 +67,10 @@ public record Telemetry(
       "-",
       String.valueOf(last.thinkingTokens().total()),
       "-",
-      String.valueOf(totalLatency),
-      totalCost > 0 ? "%.6f".formatted(totalCost) : "unknown"
+      String.valueOf(last.latencyMs().total()),
+      "-",
+      last.cost().total() > 0 ? "%.5f".formatted(last.cost().total() / 1_000_000.0) : "unknown",
+      "-"
     };
 
     int[] widths = new int[headers.length];
@@ -81,13 +87,16 @@ public record Telemetry(
     StringBuilder sep = new StringBuilder();
     for (int w : widths) sep.append("-".repeat(w)).append("  ");
 
-    StringBuilder sb = new StringBuilder("\nTelemetry is: ------\n");
+    StringBuilder sb = new StringBuilder();
+    sb.append("Telemetry: \n");
+    sb.append("=".repeat(120));
+    sb.append("\n");
     sb.append(format.formatted((Object[]) headers)).append("\n");
     sb.append(sep).append("\n");
     for (String[] row : rows) sb.append(format.formatted((Object[]) row)).append("\n");
     sb.append(sep).append("\n");
     sb.append(format.formatted((Object[]) totals)).append("\n");
-
+    sb.append("=".repeat(120));
     log.info(sb.toString());
   }
 

@@ -4,7 +4,6 @@ import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.anthropic.models.messages.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
@@ -24,26 +23,25 @@ public class Stage4Accuracy {
 
     final List<RunResult> results = new ArrayList<>((int) runs);
     for (int i = 0; i < runs; i++) {
-      log.atDebug().log(
-          "\n\nRun # {}: ------------------------------------------------------------------------",
-          i + 1);
+      log.info("=".repeat(80));
+      log.info("Run # {}: ", i + 1);
+      log.info("=".repeat(80));
       final RunResult result = runOnce(client, logFiles, model, maxTokens, maxInputTokens, costUsd);
-      log.atDebug().log(
-          "\n\nOutput is: ------\n{}\n------",
-          new ObjectMapper()
-              .writerWithDefaultPrettyPrinter()
-              .writeValueAsString(result.getSummary()));
-      log.info(result.toString());
+      log.info("=".repeat(80));
+      log.info("Output: ");
+      log.info("=".repeat(80));
+      log.info("\n{}\n", result.toPrettyString());
       Telemetry.printTelemetry(result.getTelemetries());
       results.add(result);
     }
 
-    RunResult.printResults(results);
+    Set<String> logLines = logFiles.getAllLogLines();
+    RunResult.printResults(results, logLines);
 
     client.close();
   }
 
-  static RunResult runOnce(
+  private static RunResult runOnce(
       AnthropicClient client,
       LogFiles logFiles,
       Model model,
@@ -78,14 +76,18 @@ public class Stage4Accuracy {
 
       long start = System.nanoTime();
       message = client.messages().create(conversation.build());
-      latencyMs += (System.nanoTime() - start) / 1_000_000;
+      final long turnLatency = (System.nanoTime() - start) / 1_000_000;
+      latencyMs += turnLatency;
 
       Usage usage = message.usage();
       totalInTokens += usage.inputTokens();
       totalOutTokens += usage.outputTokens();
-      totalThinkingTokens +=
+
+      final long turnThinkingTokens =
           usage.outputTokensDetails().map(OutputTokensDetails::thinkingTokens).orElse(0L);
-      totalCost += ModelPricing.getInstance().cost(message.model(), usage).orElse(0);
+      totalThinkingTokens += turnThinkingTokens;
+      final double turnCost = ModelPricing.getInstance().cost(message.model(), usage).orElse(0);
+      totalCost += turnCost;
 
       final String stopReason = message.stopReason().map(Object::toString).orElse("none");
 
@@ -95,11 +97,9 @@ public class Stage4Accuracy {
               message.stopReason().map(Objects::toString).orElse("none"),
               new Telemetry.Counts(usage.inputTokens(), totalInTokens),
               new Telemetry.Counts(usage.outputTokens(), totalOutTokens),
-              new Telemetry.Counts(
-                  usage.outputTokensDetails().map(OutputTokensDetails::thinkingTokens).orElse(0L),
-                  totalThinkingTokens),
-              latencyMs,
-              totalCost));
+              new Telemetry.Counts(turnThinkingTokens, totalThinkingTokens),
+              new Telemetry.Counts(turnLatency, latencyMs),
+              new Telemetry.Counts((long) (turnCost * 1_000_000), (long) (totalCost * 1_000_000))));
 
       if (budgetReached || stopReason.equals(StopReason.END_TURN.asString())) {
         IncidentSummary summary =
@@ -124,7 +124,14 @@ public class Stage4Accuracy {
 
       if (stopReason.equals(StopReason.MAX_TOKENS.asString())) {
         return new RunResult(
-            false, EndedBy.budget, null, i + 1, totalInTokens, totalCost, latencyMs, telemetries);
+            false,
+            EndedBy.max_tokens,
+            null,
+            i + 1,
+            totalInTokens,
+            totalCost,
+            latencyMs,
+            telemetries);
       }
 
       if (stopReason.equals(StopReason.TOOL_USE.asString())) {
@@ -136,7 +143,7 @@ public class Stage4Accuracy {
         if (outOfTurns || overBudget) { // the model wants more; we say "answer now"
           budgetReached = true;
           endReason = outOfTurns ? EndedBy.turn_limit : EndedBy.budget;
-          userBlocks.add(ContentBlockParam.ofText("Budget reached. Give your final answer now..."));
+          userBlocks.add(ContentBlockParam.ofText("Budget reached. Give your final answer now."));
           conversation.toolChoice(ToolChoiceNone.builder().build());
 
           log.atDebug().log(
@@ -159,7 +166,7 @@ public class Stage4Accuracy {
 
     return new RunResult(
         false,
-        EndedBy.turn_limit,
+        EndedBy.error,
         null,
         MAX_TURNS + 1,
         totalInTokens,
@@ -191,6 +198,7 @@ public class Stage4Accuracy {
   enum EndedBy {
     end_turn,
     budget,
+    max_tokens,
     time_overrun,
     turn_limit,
     error

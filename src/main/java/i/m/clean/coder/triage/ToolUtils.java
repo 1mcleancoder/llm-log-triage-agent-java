@@ -164,8 +164,8 @@ public class ToolUtils {
         record SearchArgs(String regex, String file, int maxResults) {}
         final SearchArgs args = tool._input().convert(SearchArgs.class);
         //        int cap = Math.min(args.maxResults, 50);
-          assert args != null;
-          List<String> hits = logFiles.search(args.regex(), args.file(), args.maxResults);
+        assert args != null;
+        List<String> hits = logFiles.search(args.regex(), args.file(), args.maxResults);
         boolean truncated = hits.size() > args.maxResults;
         String body =
             String.join("\n", hits.subList(0, Math.min(args.maxResults + 1, hits.size())));
@@ -183,8 +183,8 @@ public class ToolUtils {
       case "read_lines":
         record ReadLineArgs(String file, int from, int to, int maxLines) {}
         final ReadLineArgs rlArgs = tool._input().convert(ReadLineArgs.class);
-          assert rlArgs != null;
-          List<String> readLines =
+        assert rlArgs != null;
+        List<String> readLines =
             logFiles.readLines(rlArgs.file, rlArgs.from, rlArgs.to, rlArgs.maxLines);
         log.atDebug().log(
             "[tool_use: name={}, args={}, matchingLines.size()={}]",
@@ -196,8 +196,8 @@ public class ToolUtils {
       case "count_matches":
         record CountArgs(String regex, String file, String from, String to, String bktInterval) {}
         final CountArgs cArgs = tool._input().convert(CountArgs.class);
-          assert cArgs != null;
-          String matches =
+        assert cArgs != null;
+        String matches =
             logFiles.countMatches(cArgs.regex, cArgs.file, cArgs.from, cArgs.to, cArgs.bktInterval);
         log.atDebug().log(
             "[tool_use: name={}, args={}, matchingLines.size()={}]",
