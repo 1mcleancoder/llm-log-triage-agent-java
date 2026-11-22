@@ -69,6 +69,16 @@ class RunResultTest {
           "2026-10-25T14:02:21.642Z ERROR [orders] [http-nio-8080-exec-8] trace=0ae8d8e65ea9df94 payment failed order_id=ord-1125289 status=502 cause=\"payments: ERR-4012\" -> order marked PAYMENT_FAILED",
           "2026-10-25T14:40:05.000Z INFO  [payments] [ops] trace=- on-call note: errors subsided as campaign traffic decreased; pool size unchanged");
 
+  // Real log lines as they appear in the log files (no file:line prefix)
+  private static final Set<String> REAL_LOG_LINES_2 =
+          Set.of(
+                  "2026-10-25T13:55:05.351Z INFO [gateway] [gw-io-13] trace=1b560a1baf4b3ef3 POST /v2/charges -> card-acquirer pool=card-acquirer active=9/20 latency_ms=809 status=200",
+          "2026-10-25T13:55:16.114Z INFO [gateway] [gw-io-5] trace=bb91ad7b906261ed POST /v2/charges -> card-acquirer pool=card-acquirer active=20/20 latency_ms=992 status=200",
+          "2026-10-25T14:02:16.539Z ERROR [gateway] [gw-io-14] trace=0ae8d8e65ea9df94 connection acquire timed out pool=card-acquirer waited_ms=5040",
+          "2026-10-25T14:02:16.542Z ERROR [payments] [pay-exec-27] trace=0ae8d8e65ea9df94 ERR-4012 Payment gateway timeout order_id=ord-1125289 upstream=gateway/card-acquirer elapsed_ms=5051 retry=1/2",
+          "2026-10-25T14:02:21.582Z ERROR [payments] [pay-exec-27] trace=0ae8d8e65ea9df94 ERR-4012 Payment gateway timeout order_id=ord-1125289 upstream=gateway/card-acquirer elapsed_ms=5061 retry=2/2 giving_up=true",
+          "2026-10-25T14:02:21.642Z ERROR [orders] [http-nio-8080-exec-8] trace=0ae8d8e65ea9df94 payment failed order_id=ord-1125289 status=502 cause=\"payments: ERR-4012\" -> order marked PAYMENT_FAILED");
+
   @Test
   void fabricatedEvidence_allReal_returnsEmpty() {
     // Evidence lines without file:line prefix — all present in the real log lines
@@ -142,9 +152,16 @@ class RunResultTest {
   }
 
   @Test
-  void fabricatedEvidence_nullSummary_returnsEmpty() {
+  void fabricatedEvidence_nullSummary_returnsEmpty1() {
     RunResult result =
         new RunResult(false, Stage4Accuracy.EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
     Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES).isEmpty());
+  }
+
+  @Test
+  void fabricatedEvidence_nullSummary_returnsEmpty2() {
+    RunResult result =
+        new RunResult(false, Stage4Accuracy.EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
+    Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES_2).isEmpty());
   }
 }

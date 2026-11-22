@@ -107,7 +107,7 @@ record RunResult(
       numBudget += result.endedBy != Stage4Accuracy.EndedBy.end_turn ? 1 : 0;
 
       List<String> fabricatedEvidences = result.fabricatedEvidence(logLines);
-      countGrounded = fabricatedEvidences.isEmpty() ? 1 : 0;
+      countGrounded += fabricatedEvidences.isEmpty() ? 1 : 0;
       final boolean isPass = result.passed(triggerFound, fabricatedEvidences);
       countPass += isPass ? 1 : 0;
 
@@ -115,7 +115,7 @@ record RunResult(
       countCutshort += isCutShort ? 1 : 0;
       log.info(
           "run={}, answered={}, endedBy={}, turns={}, cost={} | mechanism={} trigger={} grounded={} | {}\n",
-          i++,
+          ++i,
           result.answered,
           result.endedBy,
           result.turns,

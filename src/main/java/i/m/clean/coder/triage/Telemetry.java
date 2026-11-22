@@ -50,8 +50,10 @@ public record Telemetry(
           pct(prev != null ? prev.thinkingTokens().value() : -1, t.thinkingTokens().value());
       rows[i][9] = t.latencyMs().value() + "/" + t.latencyMs().total();
       rows[i][10] = pct(prev != null ? prev.latencyMs().value() : -1, t.latencyMs().value());
-      String cost = t.cost().value() > 0 ? "%.5f".formatted(t.cost().value() / 1_000_000.0) : "unknown";
-      String totalCost = t.cost().total() > 0 ? "%.5f".formatted(t.cost().total() / 1_000_000.0) : "unknown";
+      String cost =
+          t.cost().value() > 0 ? "%.5f".formatted(t.cost().value() / 1_000_000.0) : "unknown";
+      String totalCost =
+          t.cost().total() > 0 ? "%.5f".formatted(t.cost().total() / 1_000_000.0) : "unknown";
       rows[i][11] = cost + "/" + totalCost;
       rows[i][12] = pct(prev != null ? prev.cost().value() : -1, t.cost().value());
     }

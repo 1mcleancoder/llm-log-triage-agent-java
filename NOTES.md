@@ -136,9 +136,119 @@ What I learned:
     Why: nothing in the prompt asked it to look for a trigger, and it stopped once it had a plausible answer
     Lesson: stage 4 goal - prompt it to look for the trigger (traffic, deploys, config) in the minutes before onset.
 
-25. About:
-    What you expected:
-    What happened:
-    Why:
-    Lesson: 
-    (leave last one empty so it is easy to fill next time)
+## Stage 4 — Accuracy & evals
+
+### 25. Validate the eval harness before trusting the score
+First 5-run eval said "trigger found 1/5", but the harness was broken:
+- cost was the last turn only (reported ~$0.005/run, real ~$0.025),
+  so the cost budget could never fire
+- turns were zero-based
+- a turn-limit path returned null
+
+**Lesson:** a broken measurement is worse than none because it looks precise.
+Check harness numbers against raw telemetry by hand before reading the score.
+
+### 26. Score at several levels, not one keyword
+The keyword scorer ("campaign" in root_cause_guess) was too strict AND too lenient:
+- too strict: runs that correctly found "4x traffic → pool 20/20 → timeouts"
+  scored as failures
+- too lenient: "campaign" came from the 14:40 post-incident on-call note,
+  not from finding the trigger
+
+Now scored as:
+- mechanism: load increase + pool saturation in the guess
+- trigger: the 13:54:20 campaign line is in evidence
+- grounded: all evidence lines are verbatim
+- PASS = trigger AND grounded
+
+**Lesson:** one number hides *where* the agent fails.
+Validate the scorer by reading transcripts.
+
+### 27. Read transcripts before changing the prompt — the tool hid the evidence
+0/5 runs found FLASH-OCT25 even though the model searched for "flash"/"campaign":
+- the regex was case-sensitive ("flash" ≠ "FLASH-OCT25")
+- broad cross-file searches were flooded by `max=20` health lines and
+  truncated before reaching orders.log
+
+The fix was in the tool, not the prompt: the truncation note now reports
+per-file match counts.
+Result: trigger found 0/5 → 7/10 across the next two batches (Fisher p ≈ 0.03).
+
+**Lesson:** tool design (what results look like, how truncation reads)
+matters as much as the prompt.
+
+### 28. Small samples lie
+0/5 → 3/5 looked like a win, but p ≈ 0.17 (not significant).
+Only after 7/10 was the effect credible.
+
+**Lesson:** run enough trials before claiming an improvement.
+At ~$0.025/run, 15–20 runs are cheap.
+
+### 29. The model fabricated an evidence line
+A run cited:
+`14:00:01.000Z … trace=6be5f62ec8eced15 … latency_ms=1840`
+
+Only the 14:02:00.729Z line exists (gateway.log:2380). The model copied a real
+line and changed the timestamp to support a "saturated from 14:00" claim.
+Tell-tale sign: round `.000` milliseconds.
+
+Neither the prompt ("evidence must be verbatim") nor structured outputs
+prevented it. **The schema guarantees shape, not truth.**
+
+Fix: verbatim check against all log lines in code; grounding gates PASS.
+
+Known gap: metrics are not verified (one run claimed "~1605 timeout lines"
+with no matching count).
+
+### 30. Agent loop control rules
+- Only `tool_use` continues the loop, so the turn-limit/budget check
+  belongs in that branch.
+- On limit: add a text block AFTER the tool_result blocks in ONE user message,
+  and set ToolChoiceNone to force a final answer.
+- Every tool_use still needs its tool_result.
+- The API merges consecutive same-role turns, but build one message anyway:
+  guaranteed ordering, logs match what the model saw, no reliance on
+  server behaviour.
+- Unexpected stop reasons (refusal, pause_turn) → end with EndedBy.error,
+  never a silent retry.
+- Separate end reasons: end_turn / budget / turn_limit / max_tokens / error.
+  max_tokens is output truncation, not a spend budget.
+
+### 31. The budget is soft — describe it honestly
+The budget is checked between turns, so the final turn can overshoot
+(a run hit 287K vs a 250K cap, $0.032 vs $0.03).
+
+Say "no new turns start once input passes X", not "input never exceeds X".
+
+Hard-cap options:
+- headroom: stop at cap − typical turn size
+- prediction: estimate the next turn's input before calling
+
+### 32. Telemetry: per-turn vs cumulative
+The TOTAL row summed cumulative columns (cost showed $0.096 for a $0.025 run,
+latency 123 s for a 27 s run).
+
+Store each metric as Counts(value, total).
+TOTAL = last cumulative value, never a sum of totals.
+
+### 33. Few-shot examples leak
+An incident-specific metric (`orders/5min: 13:50 ≈ 250 → 13:55 ≈ 900`) left in
+the auth example was copied nearly verbatim in format by a run.
+
+**Lesson:** examples must not contain anything from the real incident.
+
+### 34. Stage 4 baseline (Haiku 5.5, 5 runs)
+| Metric                      | Value   |
+|-----------------------------|---------|
+| PASS                        | 4/5     |
+| mechanism                   | 5/5     |
+| trigger                     | 4/5     |
+| grounded                    | 5/5     |
+| avg turns                   | 9.4     |
+| cumulative input tokens/run | ~220K   |
+| cost/run                    | ~$0.025 |
+
+Input is ~95% of cost; each late turn resends ~30–45K tokens of old
+tool results.
+
+Stage 5 goal: cut input tokens while keeping PASS ≈ 4/5.
