@@ -22,7 +22,7 @@ public class Stage5A_CxtEnggClearToolResults {
     AnthropicClient client = AnthropicOkHttpClient.fromEnv();
 
     final Set<String> logLines = logFiles.getAllLogLines();
-    final ContextStrategy strategy = new ClearOld(3);
+    final ContextStrategy strategy = new ContextStrategy.ClearOld(3);
     final List<RunResult> results = new ArrayList<>((int) runs);
     for (int i = 0; i < runs; i++) {
       log.info("=".repeat(80));
@@ -190,7 +190,7 @@ public class Stage5A_CxtEnggClearToolResults {
           }
         }
 
-        history.add(new Step(i+1, message.rawMessage().toParam(), toolCalls, note));
+        history.add(new Step(i + 1, message.rawMessage().toParam(), toolCalls, note));
       }
     }
 
@@ -222,74 +222,5 @@ public class Stage5A_CxtEnggClearToolResults {
               }
             })
         .toList();
-  }
-
-  interface ContextStrategy {
-    List<MessageParam> build(MessageParam firstUser, List<Step> history, int currentTurn);
-  }
-
-  record Step(int turn, MessageParam assistant, List<ToolCall> calls, String note) {
-    MessageParam toolResultsMsg(boolean cleared) {
-      List<ContentBlockParam> blocks = new ArrayList<>();
-      for (ToolCall c : calls) blocks.add(c.toBlock(cleared));
-      if (note != null) blocks.add(ContentBlockParam.ofText(note));
-      return MessageParam.ofUserOfContentBlockParams(blocks);
-    }
-  }
-
-  record ToolCall(String id, String name, String args, String result, boolean isError) {
-    ContentBlockParam toBlock(boolean cleared) {
-      var b =
-          ToolResultBlockParam.builder()
-              .toolUseId(id)
-              .content(
-                  cleared ? "[cleared: %s(%s). Re-run if needed.]".formatted(name, args) : result);
-      if (isError) b.isError(true); // only when true:
-      return ContentBlockParam.ofToolResult(b.build());
-    }
-  }
-
-  static final class KeepAll implements ContextStrategy {
-    public List<MessageParam> build(MessageParam firstUser, List<Step> history, int currentTurn) {
-      List<MessageParam> out = new ArrayList<>();
-      out.add(firstUser);
-      for (Step s : history) {
-        out.add(s.assistant()); // unchanged
-        out.add(s.toolResultsMsg(false)); // unchanged
-      }
-      return out;
-    }
-  }
-
-  static final class ClearOld implements ContextStrategy {
-    private final int keepLast;
-
-    ClearOld(int keepLast) {
-      this.keepLast = keepLast;
-    }
-
-    @Override
-    public List<MessageParam> build(MessageParam firstUser, List<Step> history, int currentTurn) {
-      final List<MessageParam> out = new ArrayList<>();
-      out.add(firstUser);
-
-      int clearedCalls = 0;
-      long clearedChars = 0;
-      for (Step s : history) {
-        final boolean clearOpt = (currentTurn - s.turn > keepLast);
-        out.add(s.assistant);
-        out.add(s.toolResultsMsg(clearOpt));
-
-        // telemetry
-        if (clearOpt) {
-          clearedCalls += s.calls().size();
-          for (ToolCall c : s.calls()) clearedChars += c.result().length();
-        }
-      }
-
-      log.atDebug().log(
-          "turn {} cleared {} results, ~{} chars", currentTurn, clearedCalls, clearedChars);
-      return out;
-    }
   }
 }
