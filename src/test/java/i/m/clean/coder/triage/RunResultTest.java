@@ -22,7 +22,8 @@ class RunResultTest {
                 "gateway POST /v2/charges per 5m: 13:50 ≈ 71 → 13:55 ≈ 281",
                 "orders/5m: 13:50 ≈ 214 → 13:55 ≈ 842"));
 
-    return new RunResult(true, EndedBy.end_turn, summary, 9, 256994, 0.0283904, 28215, List.of());
+    return new RunResult(
+        true, EndedBy.end_turn, summary, 9, 256994, 0.0283904, 28215, 0, List.of());
   }
 
   @Test
@@ -43,7 +44,8 @@ class RunResultTest {
 
   @Test
   void toPrettyString_nullSummary() {
-    RunResult result = new RunResult(false, EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
+    RunResult result =
+        new RunResult(false, EndedBy.budget, null, 3, 50000, 0.005, 5000, 0, List.of());
     String out = result.toPrettyString();
 
     Assertions.assertTrue(out.contains("summary      : null"));
@@ -95,7 +97,7 @@ class RunResultTest {
             List.of());
 
     RunResult result =
-        new RunResult(true, EndedBy.end_turn, summary, 8, 180967, 0.021, 30970, List.of());
+        new RunResult(true, EndedBy.end_turn, summary, 8, 180967, 0.021, 30970, 0, List.of());
 
     Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES).isEmpty());
   }
@@ -117,7 +119,7 @@ class RunResultTest {
             List.of());
 
     RunResult result =
-        new RunResult(true, EndedBy.end_turn, summary, 7, 144119, 0.017, 28779, List.of());
+        new RunResult(true, EndedBy.end_turn, summary, 7, 144119, 0.017, 28779, 0, List.of());
 
     Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES).isEmpty());
   }
@@ -139,7 +141,7 @@ class RunResultTest {
             List.of());
 
     RunResult result =
-        new RunResult(true, EndedBy.end_turn, summary, 5, 100000, 0.012, 20000, List.of());
+        new RunResult(true, EndedBy.end_turn, summary, 5, 100000, 0.012, 20000, 0, List.of());
 
     List<String> fabricatedEvidence = result.fabricatedEvidence(REAL_LOG_LINES);
     Assertions.assertEquals(1, fabricatedEvidence.size());
@@ -148,13 +150,15 @@ class RunResultTest {
 
   @Test
   void fabricatedEvidence_nullSummary_returnsEmpty1() {
-    RunResult result = new RunResult(false, EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
+    RunResult result =
+        new RunResult(false, EndedBy.budget, null, 3, 50000, 0.005, 5000, 0, List.of());
     Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES).isEmpty());
   }
 
   @Test
   void fabricatedEvidence_nullSummary_returnsEmpty2() {
-    RunResult result = new RunResult(false, EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
+    RunResult result =
+        new RunResult(false, EndedBy.budget, null, 3, 50000, 0.005, 5000, 0, List.of());
     Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES_2).isEmpty());
   }
 }

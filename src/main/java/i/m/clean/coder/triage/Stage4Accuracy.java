@@ -110,7 +110,15 @@ public class Stage4Accuracy {
                 .orElseThrow(() -> new IllegalStateException("No structured output returned"));
         return budgetReached
             ? new RunResult(
-                true, endReason, summary, i + 1, totalInTokens, totalCost, latencyMs, telemetries)
+                true,
+                endReason,
+                summary,
+                i + 1,
+                totalInTokens,
+                totalCost,
+                latencyMs,
+                0,
+                telemetries)
             : new RunResult(
                 true,
                 EndedBy.end_turn,
@@ -119,6 +127,7 @@ public class Stage4Accuracy {
                 totalInTokens,
                 totalCost,
                 latencyMs,
+                0,
                 telemetries);
       }
 
@@ -131,6 +140,7 @@ public class Stage4Accuracy {
             totalInTokens,
             totalCost,
             latencyMs,
+            0,
             telemetries);
       }
 
@@ -172,6 +182,7 @@ public class Stage4Accuracy {
         totalInTokens,
         totalCost,
         latencyMs,
+        0,
         telemetries);
   }
 

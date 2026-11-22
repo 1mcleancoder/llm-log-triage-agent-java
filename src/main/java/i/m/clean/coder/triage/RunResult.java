@@ -14,6 +14,7 @@ record RunResult(
     long inputTokens,
     double cost,
     long latencyMs,
+    int repeats,
     @Getter List<Telemetry> telemetries) {
 
   /** Level 1: traffic surge AND pool saturation both described */
@@ -84,6 +85,27 @@ record RunResult(
     return summary.rootCauseGuess().contains("Budget reached");
   }
 
+  public void printResult(Set<String> logLines) {
+    log.info("Pass/Fail:");
+    log.info("=".repeat(120));
+    final boolean foundMech = foundMechanism();
+    final boolean triggerFound = foundTrigger();
+    List<String> fabricatedEvidences = fabricatedEvidence(logLines);
+    final boolean isPass = passed(triggerFound, fabricatedEvidences);
+    log.info(
+        "answered={}, endedBy={}, turns={}, cost={} | mechanism={} trigger={} grounded={} | {} | repeats {}\n",
+        answered,
+        endedBy,
+        turns,
+        String.format("%.4f", cost),
+        foundMech ? "Y" : "N",
+        triggerFound ? "Y" : "N",
+        fabricatedEvidences.isEmpty() ? "Y" : "N",
+        isPass ? "PASS" : "FAIL",
+        repeats);
+    log.info("=".repeat(120));
+  }
+
   public static void printResults(List<RunResult> results, Set<String> logLines) {
     int numBudget = 0;
     int countPass = 0;
@@ -94,6 +116,7 @@ record RunResult(
     int countCutshort = 0;
     double totalInTokens = 0;
     double totalCost = 0;
+    int countRepeats = 0;
 
     log.info("=".repeat(120));
     int i = 0;
@@ -115,6 +138,8 @@ record RunResult(
 
       final boolean isCutShort = result.isAnswerCutShort();
       countCutshort += isCutShort ? 1 : 0;
+
+      countRepeats += result.repeats;
       log.info(
           "run={}, answered={}, endedBy={}, turns={}, cost={} | mechanism={} trigger={} grounded={} | {}\n",
           ++i,
@@ -131,7 +156,7 @@ record RunResult(
     log.info("Summary: ");
     log.info("=".repeat(120));
     log.info(
-        "PASS {}/{} | mechanism {}/{} | trigger {}/{} | grounded {}/{} | avg {} turns | avg {} input tokens | avg cost ${}/run | withinBudget {}/{} | cut short {}",
+        "PASS {}/{} | mechanism {}/{} | trigger {}/{} | grounded {}/{} | avg {} turns | avg {} input tokens | avg cost ${}/run | withinBudget {}/{} | cut short {} | repeats {}",
         countPass,
         results.size(),
         countMechanism,
@@ -145,7 +170,8 @@ record RunResult(
         String.format("%.3f", totalCost / results.size()),
         numBudget,
         results.size(),
-        countCutshort);
+        countCutshort,
+        countRepeats);
     log.info("=".repeat(120));
   }
 }
