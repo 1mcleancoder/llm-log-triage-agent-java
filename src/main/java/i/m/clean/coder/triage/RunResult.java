@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 record RunResult(
     boolean answered,
-    Stage4Accuracy.EndedBy endedBy, // "end_turn", "budget", "turn_limit", "error"
+    EndedBy endedBy, // "end_turn", "budget", "turn_limit", "error"
     @Getter IncidentSummary summary,
     int turns,
     long inputTokens,
@@ -92,6 +92,7 @@ record RunResult(
     int countGrounded = 0;
     double countTurns = 0;
     int countCutshort = 0;
+    double totalInTokens = 0;
     double totalCost = 0;
 
     log.info("=".repeat(120));
@@ -101,10 +102,11 @@ record RunResult(
       countMechanism += foundMech ? 1 : 0;
 
       countTurns += result.turns;
+      totalInTokens += result.inputTokens;
       totalCost += result.cost;
       final boolean triggerFound = result.foundTrigger();
       countTriggerFound += triggerFound ? 1 : 0;
-      numBudget += result.endedBy != Stage4Accuracy.EndedBy.end_turn ? 1 : 0;
+      numBudget += result.endedBy == EndedBy.end_turn ? 1 : 0;
 
       List<String> fabricatedEvidences = result.fabricatedEvidence(logLines);
       countGrounded += fabricatedEvidences.isEmpty() ? 1 : 0;
@@ -129,7 +131,7 @@ record RunResult(
     log.info("Summary: ");
     log.info("=".repeat(120));
     log.info(
-        "PASS {}/{} | mechanism {}/{} | trigger {}/{} | grounded {}/{} | avg {} turns | avg ${}/run | withinBudget {}/{} | cut short {}",
+        "PASS {}/{} | mechanism {}/{} | trigger {}/{} | grounded {}/{} | avg {} turns | avg {} input tokens | avg cost ${}/run | withinBudget {}/{} | cut short {}",
         countPass,
         results.size(),
         countMechanism,
@@ -138,7 +140,8 @@ record RunResult(
         results.size(),
         countGrounded,
         results.size(),
-        String.format("%.2f", countTurns / results.size()),
+        String.format("%.1f", countTurns / results.size()),
+        "~" + Math.round(totalInTokens / results.size() / 1000.0) + "K",
         String.format("%.3f", totalCost / results.size()),
         numBudget,
         results.size(),

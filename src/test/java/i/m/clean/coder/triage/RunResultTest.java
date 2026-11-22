@@ -22,8 +22,7 @@ class RunResultTest {
                 "gateway POST /v2/charges per 5m: 13:50 ≈ 71 → 13:55 ≈ 281",
                 "orders/5m: 13:50 ≈ 214 → 13:55 ≈ 842"));
 
-    return new RunResult(
-        true, Stage4Accuracy.EndedBy.end_turn, summary, 9, 256994, 0.0283904, 28215, List.of());
+    return new RunResult(true, EndedBy.end_turn, summary, 9, 256994, 0.0283904, 28215, List.of());
   }
 
   @Test
@@ -44,8 +43,7 @@ class RunResultTest {
 
   @Test
   void toPrettyString_nullSummary() {
-    RunResult result =
-        new RunResult(false, Stage4Accuracy.EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
+    RunResult result = new RunResult(false, EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
     String out = result.toPrettyString();
 
     Assertions.assertTrue(out.contains("summary      : null"));
@@ -71,8 +69,8 @@ class RunResultTest {
 
   // Real log lines as they appear in the log files (no file:line prefix)
   private static final Set<String> REAL_LOG_LINES_2 =
-          Set.of(
-                  "2026-10-25T13:55:05.351Z INFO [gateway] [gw-io-13] trace=1b560a1baf4b3ef3 POST /v2/charges -> card-acquirer pool=card-acquirer active=9/20 latency_ms=809 status=200",
+      Set.of(
+          "2026-10-25T13:55:05.351Z INFO [gateway] [gw-io-13] trace=1b560a1baf4b3ef3 POST /v2/charges -> card-acquirer pool=card-acquirer active=9/20 latency_ms=809 status=200",
           "2026-10-25T13:55:16.114Z INFO [gateway] [gw-io-5] trace=bb91ad7b906261ed POST /v2/charges -> card-acquirer pool=card-acquirer active=20/20 latency_ms=992 status=200",
           "2026-10-25T14:02:16.539Z ERROR [gateway] [gw-io-14] trace=0ae8d8e65ea9df94 connection acquire timed out pool=card-acquirer waited_ms=5040",
           "2026-10-25T14:02:16.542Z ERROR [payments] [pay-exec-27] trace=0ae8d8e65ea9df94 ERR-4012 Payment gateway timeout order_id=ord-1125289 upstream=gateway/card-acquirer elapsed_ms=5051 retry=1/2",
@@ -97,8 +95,7 @@ class RunResultTest {
             List.of());
 
     RunResult result =
-        new RunResult(
-            true, Stage4Accuracy.EndedBy.end_turn, summary, 8, 180967, 0.021, 30970, List.of());
+        new RunResult(true, EndedBy.end_turn, summary, 8, 180967, 0.021, 30970, List.of());
 
     Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES).isEmpty());
   }
@@ -120,8 +117,7 @@ class RunResultTest {
             List.of());
 
     RunResult result =
-        new RunResult(
-            true, Stage4Accuracy.EndedBy.end_turn, summary, 7, 144119, 0.017, 28779, List.of());
+        new RunResult(true, EndedBy.end_turn, summary, 7, 144119, 0.017, 28779, List.of());
 
     Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES).isEmpty());
   }
@@ -143,8 +139,7 @@ class RunResultTest {
             List.of());
 
     RunResult result =
-        new RunResult(
-            true, Stage4Accuracy.EndedBy.end_turn, summary, 5, 100000, 0.012, 20000, List.of());
+        new RunResult(true, EndedBy.end_turn, summary, 5, 100000, 0.012, 20000, List.of());
 
     List<String> fabricatedEvidence = result.fabricatedEvidence(REAL_LOG_LINES);
     Assertions.assertEquals(1, fabricatedEvidence.size());
@@ -153,15 +148,13 @@ class RunResultTest {
 
   @Test
   void fabricatedEvidence_nullSummary_returnsEmpty1() {
-    RunResult result =
-        new RunResult(false, Stage4Accuracy.EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
+    RunResult result = new RunResult(false, EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
     Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES).isEmpty());
   }
 
   @Test
   void fabricatedEvidence_nullSummary_returnsEmpty2() {
-    RunResult result =
-        new RunResult(false, Stage4Accuracy.EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
+    RunResult result = new RunResult(false, EndedBy.budget, null, 3, 50000, 0.005, 5000, List.of());
     Assertions.assertTrue(result.fabricatedEvidence(REAL_LOG_LINES_2).isEmpty());
   }
 }

@@ -194,13 +194,4 @@ public class Stage4Accuracy {
             })
         .toList();
   }
-
-  enum EndedBy {
-    end_turn,
-    budget,
-    max_tokens,
-    time_overrun,
-    turn_limit,
-    error
-  }
 }
