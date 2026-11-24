@@ -252,3 +252,46 @@ Input is ~95% of cost; each late turn resends ~30–45K tokens of old
 tool results.
 
 Stage 5 goal: cut input tokens while keeping PASS ≈ 4/5.
+
+### 35. Message Batches: async, per-request failures, out-of-order results
+Day1Batch: 6 requests (5 log lines + 1 with an invalid model),
+classified HIGH/MEDIUM/LOW.
+
+What happened:
+- The batch was ACCEPTED at create (processing=6), even with
+  the invalid model.
+- The bad request failed only after the batch ENDED, as one
+  ERRORED result (not_found_error); the other 5 succeeded.
+- ~2.5 min to ENDED for 6 tiny requests. Batches suit offline
+  and overnight work, not interactive use.
+- Results arrived out of order:
+  [line-6, line-2, line-3, line-5, line-1, line-4].
+
+Mechanics:
+- MessageBatch is a snapshot; the id is the stable handle.
+  Poll with retrieve(id) to get a fresh state each time.
+- Compare status with ENDED.equals(...), not !=
+  (an SDK value object, not a Java enum).
+- Back off between polls (10s, 20s, 40s ... capped).
+- Fetch results once, after ENDED; map them back by custom_id.
+- Handle all 4 outcomes: succeeded / errored / canceled / expired.
+  (isValid() is SDK object validation, not an outcome.)
+
+Unplanned lessons:
+- Two placeholder lines ("<ERR-4013 line from grep>") went
+  through and counted as SUCCEEDED; the model just asked for
+  the real line. A batch checks execution, not quality.
+  Guards: validate inputs before submit; constrain the output
+  (enum schema via outputConfig) so bad answers fail loudly.
+- Output tokens dominated cost: 476 in vs 424 out, and output
+  costs 5x per token. The placeholder replies cost more than the
+  4 real answers. A one-word answer still used 84 output tokens
+  (hidden thinking counts as output).
+- Cost: ~$0.00026 at full price, ~$0.00013 with the batch
+  discount (about 50%). ModelPricing needs a batch flag, or the
+  telemetry overstates the cost.
+
+Triage insight: the campaign line (the real root cause) was
+classified LOW. Judging lines one at a time can't do triage;
+importance comes from correlation and timing (traffic before
+and after 13:54), which is what the agent does.

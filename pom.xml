@@ -13,7 +13,7 @@
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- Check https://github.com/anthropics/anthropic-sdk-java for the latest version -->
-    <anthropic.version>3.5.0</anthropic.version>
+    <anthropic.version>3.13.0</anthropic.version>
     <!-- Which stage to run: mvn -q compile exec:java -Dstage=i.m.clean.coder.triage.Stage1FirstCall -->
     <stage>i.m.clean.coder.triage.Stage1FirstCall</stage>
   </properties>
@@ -37,7 +37,7 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>1.6.3</version>
+      <version>1.6.6</version>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>

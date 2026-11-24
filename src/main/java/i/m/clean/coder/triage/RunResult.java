@@ -156,7 +156,7 @@ record RunResult(
     log.info("Summary: ");
     log.info("=".repeat(120));
     log.info(
-        "PASS {}/{} | mechanism {}/{} | trigger {}/{} | grounded {}/{} | avg {} turns | avg {} input tokens | avg cost ${}/run | withinBudget {}/{} | cut short {} | repeats {}",
+        "PASS {}/{} | mechanism {}/{} | trigger {}/{} | grounded {}/{} | avg {} turns | avg {} in tokens | avg $ ${}/run | avg $ per PASS {} | withinBudget {}/{} | cut short {} | repeats {}",
         countPass,
         results.size(),
         countMechanism,
@@ -168,6 +168,7 @@ record RunResult(
         String.format("%.1f", countTurns / results.size()),
         "~" + Math.round(totalInTokens / results.size() / 1000.0) + "K",
         String.format("%.3f", totalCost / results.size()),
+        String.format("%.3f", totalCost / countPass),
         numBudget,
         results.size(),
         countCutshort,
