@@ -313,30 +313,29 @@ CLAUDE.md:
   would Claude make a wrong or slower move without it?
 - Model IDs in args are API IDs (claude-haiku-5-5), not Java
   constant names (CLAUDE_HAIKU_5_5).
+- CLAUDE.md loads at session start; changes need a new session.
 
-Hook (.claude/settings.json, PreToolUse, matcher Edit|Write):
-- Script reads the tool JSON on stdin; for data/logs/ or answers/
-  paths it writes a reason to stderr and exits 2 (blocks the tool;
-  the reason goes to Claude). Anything else exits 0.
-- Unit-tested with fake JSON: exit 2 + message for
-  data/logs/payments.log, exit 0 for src/.
+Hook (.claude/settings.json, PreToolUse, matcher Edit|Write|Bash):
+- Script reads the tool JSON on stdin.
+  Edit/Write: tool_input.file_path matches a protected path → block.
+  Bash: tool_input.command has a protected path AND a write op
+  (>, sed -i, tee, rm, mv, cp, truncate, dd) → block.
+  Block = reason on stderr + exit 2 (the tool doesn't run; the
+  reason goes to Claude). Otherwise exit 0.
+- protected='(data/logs|answers)/|\.claude/(hooks/|settings\.json)'
+  One regex used by both checks (grep -Eq = match anywhere, quiet).
+- The Bash check is a heuristic that errs towards blocking
+  (`2>/dev/null` on a read is blocked too). A blocked read is
+  acceptable; a modified baseline is not.
 
-Testing lessons:
-- CLAUDE.md alone made Claude refuse every edit, even "go ahead"
-  and "use sed", so the hook never fired and wasn't tested by those
-  attempts. To test a backstop, get past the first defence
-  (unit-test the script; remove the rule in a new session).
-- Claude claimed "the hook is working" when it had only refused
-  because of CLAUDE.md. A model's self-report is not evidence:
-  check the system directly.
-- CLAUDE.md is loaded at session start; edits mid-session need a
-  new session.
-
-Gap: an Edit|Write matcher doesn't cover Bash (sed -i, >, tee).
-Fix: add Bash to the matcher and check tool_input.command (a
-heuristic). Defence in depth: hook + read-only files + checksum of
-data/ in the eval harness, so a changed baseline can't silently
-produce scores.
-
-Still to verify: /hooks shows the hook; live block in a new
-session with the CLAUDE.md rule commented out.
+How it was tested:
+1. CLAUDE.md alone made Claude refuse every edit ("go ahead",
+   "use sed"), so the hook never fired. To test a backstop, get past
+   the first defence.
+2. Unit-tested the script with fake JSON: exit 2 + message for
+   data/logs paths and write commands, exit 0 for src/ and grep.
+3. Live test, CLAUDE.md rule removed, matcher Edit|Write:
+   Claude chose Bash (echo >> data/logs/payments.log), the hook
+   didn't see it, and THE GROUND TRUTH WAS MODIFIED (restored
+   with git restore). Any eval before the restore would have
+   scored
