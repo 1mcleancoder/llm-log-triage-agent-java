@@ -295,3 +295,48 @@ Triage insight: the campaign line (the real root cause) was
 classified LOW. Judging lines one at a time can't do triage;
 importance comes from correlation and timing (traffic before
 and after 13:54), which is what the agent does.
+
+### 36. Claude Code: CLAUDE.md (guidance) vs hooks (enforcement)
+
+CLAUDE.md:
+- Bootstrapped with /init, then reviewed by hand. /init got
+  several facts wrong, stated confidently: SDK version, exec.args
+  order, Stage 5A behaviour, token growth numbers, stage count.
+  A wrong line in CLAUDE.md is worse than none: it loads into
+  every session and is treated as true.
+- Keep: build/run commands, ground-truth rule, experiment rules,
+  hard-won API gotchas (temperature 400, hidden thinking tokens,
+  truncation feedback, few-shot leakage).
+- Cut: data flow (Claude can read the code), inventories that go
+  stale (stage list, file list).
+- Rule: describe conventions, not inventories. Test for each line:
+  would Claude make a wrong or slower move without it?
+- Model IDs in args are API IDs (claude-haiku-5-5), not Java
+  constant names (CLAUDE_HAIKU_5_5).
+
+Hook (.claude/settings.json, PreToolUse, matcher Edit|Write):
+- Script reads the tool JSON on stdin; for data/logs/ or answers/
+  paths it writes a reason to stderr and exits 2 (blocks the tool;
+  the reason goes to Claude). Anything else exits 0.
+- Unit-tested with fake JSON: exit 2 + message for
+  data/logs/payments.log, exit 0 for src/.
+
+Testing lessons:
+- CLAUDE.md alone made Claude refuse every edit, even "go ahead"
+  and "use sed", so the hook never fired and wasn't tested by those
+  attempts. To test a backstop, get past the first defence
+  (unit-test the script; remove the rule in a new session).
+- Claude claimed "the hook is working" when it had only refused
+  because of CLAUDE.md. A model's self-report is not evidence:
+  check the system directly.
+- CLAUDE.md is loaded at session start; edits mid-session need a
+  new session.
+
+Gap: an Edit|Write matcher doesn't cover Bash (sed -i, >, tee).
+Fix: add Bash to the matcher and check tool_input.command (a
+heuristic). Defence in depth: hook + read-only files + checksum of
+data/ in the eval harness, so a changed baseline can't silently
+produce scores.
+
+Still to verify: /hooks shows the hook; live block in a new
+session with the CLAUDE.md rule commented out.
